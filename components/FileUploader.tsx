@@ -1,6 +1,8 @@
 'use client';
 import { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
+import { ethers } from 'ethers';
+import { Synapse } from '@filecoin-project/synapse-sdk';
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -37,7 +39,29 @@ export function FileUploader() {
 
   const handleSubmit = () => {
     if (!file) return;
-    // TODO: Add your file upload logic here using synapse-sdk
+    //  upload file here using synapse-sdk
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer =  provider.getSigner();
+
+    //Initialize Synapse with Wallet signer
+    const synapse = new Synapse(signer);
+
+    //Create storage service instance
+    const fsStorage = await synapse.createStorage();
+
+    //Upload File
+    const uploadTask = fsStorage.uploadFile(file);
+
+    //Wait for upload to complete
+    const commp = await uploadTask.commp()
+    console.log(`Generated CommP: ${commp}`)
+    
+    const sp = await uploadTask.store()
+    console.log(`Stored data with provider: ${sp}`)
+    
+    const txHash = await uploadTask.done()
+    console.log(`Blob committed on chain: ${txHash}`)
+
     console.log('Uploading file:', file);
   };
 
