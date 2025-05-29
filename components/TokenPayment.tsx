@@ -25,10 +25,11 @@ export function TokenPayment({defaultAmount = "10" }: TokenPaymentProps) {
     try {
       setIsBalanceLoading(true);
       const provider = new ethers.BrowserProvider(window.ethereum);
-      // USDFC Balance check using synapse-sdk
+      // TODO: Replace with actual synapse balance check
+      // This is a placeholder - implement actual balance check using synapse-sdk
       const synapse = new Synapse(provider);
       const balance = await synapse.getBalance(address);
-      setBalance("1.2");
+      setBalance(balance);
     } catch (error) {
       console.error('Error fetching balance:', error);
       setStatus('Error fetching balance. Please try again.');
@@ -54,6 +55,7 @@ export function TokenPayment({defaultAmount = "10" }: TokenPaymentProps) {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
+      //TODO: use synapse-sdk to deposite USDFC to synapse
       const synapse = new Synapse(signer);
       await synapse.deposit(amount);
 

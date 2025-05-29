@@ -1,13 +1,16 @@
 'use client';
+import { ethers } from 'ethers';
 import { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { ethers } from 'ethers';
 import { Synapse } from '@filecoin-project/synapse-sdk';
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { isConnected } = useAccount();
+  const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -37,36 +40,47 @@ export function FileUploader() {
     }
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!file) return;
-    //  upload file here using synapse-sdk
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer =  provider.getSigner();
+    try {
+      setIsLoading(true);
+      setProgress(0);
+      setStatus('Preparing upload...');
+      
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
 
-    //Initialize Synapse with Wallet signer
-    const synapse = new Synapse(signer);
+      // TODO: upload file to Filecoin using synapse-sdk
+      const synapse = new Synapse(signer);
+      const fsStorage = await synapse.createStorage();
+      const uploadTask = fsStorage.upload(file);
 
-    //Create storage service instance
-    const fsStorage = await synapse.createStorage();
+      // Track upload progress
+      const commp = await uploadTask.commp();
+      setStatus(`Generated CommP: ${commp}`);
+      setProgress(1);
 
-    //Upload File
-    const uploadTask = fsStorage.uploadFile(file);
+      const sp = await uploadTask.store();
+      setStatus(`Stored data with provider: ${sp}`);
+      setProgress(2);
 
-    //Wait for upload to complete
-    const commp = await uploadTask.commp()
-    console.log(`Generated CommP: ${commp}`)
-    
-    const sp = await uploadTask.store()
-    console.log(`Stored data with provider: ${sp}`)
-    
-    const txHash = await uploadTask.done()
-    console.log(`Blob committed on chain: ${txHash}`)
+      const txHash = await uploadTask.done()
+      setStatus('✅ File uploaded successfully to Filecoin in tx ' + txHash);
+      setProgress(3);
 
-    console.log('Uploading file:', file);
+    } catch (err: any) {
+      console.error(err);
+      setStatus(`❌ ${err.message || 'Upload failed. Please try again.'}`);
+    } finally {
+      setIsLoading(false);
+      setProgress(0);
+    }
   };
 
   const handleReset = () => {
     setFile(null);
+    setStatus('');
+    setProgress(0);
   };
 
   if (!isConnected) {
@@ -121,27 +135,46 @@ export function FileUploader() {
       <div className="flex justify-center gap-4 mt-4">
         <button
           onClick={handleSubmit}
-          disabled={!file}
+          disabled={!file || isLoading}
           className={`px-6 py-2 rounded-[20px] text-center border-2 border-black transition-all ${
-            file
-              ? 'bg-black text-white hover:bg-white hover:text-black'
-              : 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed'
+            !file || isLoading
+              ? 'bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-black text-white hover:bg-white hover:text-black'
           }`}
         >
-          Submit
+          {isLoading ? 'Uploading...' : 'Submit'}
         </button>
         <button
           onClick={handleReset}
-          disabled={!file}
+          disabled={!file || isLoading}
           className={`px-6 py-2 rounded-[20px] text-center border-2 transition-all ${
-            file
-              ? 'border-black text-black hover:bg-black hover:text-white'
-              : 'border-gray-200 text-gray-400 cursor-not-allowed'
+            !file || isLoading
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-black text-black hover:bg-black hover:text-white'
           }`}
         >
           Reset
         </button>
       </div>
+      {status && (
+        <div className="mt-4 text-center">
+          <p className={`text-sm ${
+            status.includes('❌') ? 'text-red-500' : 
+            status.includes('✅') ? 'text-green-500' : 
+            'text-gray-500'
+          }`}>
+            {status}
+          </p>
+          {isLoading && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+              <div 
+                className="bg-black h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
