@@ -67,7 +67,7 @@ export function FileUploader() {
 
       // 3) Create Synapse instance
       const synapse = await Synapse.create({ provider });
-      const balance = await synapse.walletBalance();
+      const balance = await synapse.payments.walletBalance();
       console.log("FIL balance:", balance.toString());
 
       // 4) Create (mock) StorageService
