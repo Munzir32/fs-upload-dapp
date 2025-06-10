@@ -74,24 +74,44 @@ export function FileUploader() {
       console.log("FIL balance:", filBalance.toString());
       console.log("USDFC balance:", usdfcBalance.toString());
 
-      // 4) Ensure allowances and approvals using PandoraService
-      const pandoraService = new PandoraService(provider, pandoraAddress);
-      setStatus("Checking allowances...");
-      const prep = await pandoraService.prepareStorageUpload(
-        { dataSize: uint8ArrayBytes.length },
-        synapse.payments
-      );
+      // 4) Create StorageService using Synapse SDK v0.5
+      setStatus("Creating storage service...");
+      const storage = await synapse.createStorage({
+        withCDN: false,
+        callbacks: {
+          onProviderSelected: (provider) => {
+            console.log("Selected storage provider:", provider.owner);
+            console.log("PDP URL:", provider.pdpUrl);
+          },
+          onProofSetResolved: (info) => {
+            if (info.isExisting) {
+              console.log("Using existing proof set:", info.proofSetId);
+            } else {
+              console.log("Created new proof set:", info.proofSetId);
+            }
+          },
+          onProofSetCreationStarted: (txHash) => {
+            console.log("Creating proof set, tx:", txHash);
+          },
+        },
+      });
 
-      for (const action of prep.actions) {
-        setStatus(action.description + "...");
-        await action.execute();
+      // 5) Run a preflight check
+      setStatus("Running preflight check...");
+      const preflight = await storage.preflightUpload(uint8ArrayBytes.length);
+
+      if (!preflight.allowanceCheck.sufficient) {
+        console.log("Insufficient allowances, preparing upload...");
+        const pandoraService = new PandoraService(provider, pandoraAddress);
+        const prep = await pandoraService.prepareStorageUpload(
+          { dataSize: uint8ArrayBytes.length },
+          synapse.payments
+        );
+        for (const action of prep.actions) {
+          setStatus(action.description + "...");
+          await action.execute();
+        }
       }
-
-      // 5) Create StorageService using Synapse SDK v0.5
-      const storage = await synapse.createStorage({});
-
-      // 6) Run a preflight check (optional)
-      await storage.preflightUpload(uint8ArrayBytes.length);
 
       // 6) Upload the file using the new API
       setStatus("Uploading to storage provider...");
