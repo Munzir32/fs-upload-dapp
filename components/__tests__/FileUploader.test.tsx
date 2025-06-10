@@ -36,4 +36,7 @@ test('uploads file and shows success status', async () => {
   await waitFor(() => {
     expect(screen.getByText(/file uploaded successfully/i)).toBeInTheDocument();
   });
+  await waitFor(() => {
+    expect(screen.getByText(/root id/i)).toBeInTheDocument();
+  });
 });
