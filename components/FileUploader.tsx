@@ -3,8 +3,8 @@ import { ethers } from "ethers";
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 
-import { Synapse } from "@filoz/synapse-sdk";
-import { calculate as calculateCommP } from "@filoz/synapse-sdk/commp";
+import { Synapse, CONTRACT_ADDRESSES, TOKENS } from "@filoz/synapse-sdk";
+import { PandoraService } from "@filoz/synapse-sdk/pandora";
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,7 +17,7 @@ export function FileUploader() {
     fileName: string;
     fileSize: number;
     commp: string;
-    txHash: string;
+    rootId?: number;
   } | null>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -62,44 +62,75 @@ export function FileUploader() {
 
       // 2) Initialize ethers provider & signer
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      // (Note: Synapse.create({ provider }) will pick up the signer automatically)
 
       // 3) Create Synapse instance
-      const synapse = await Synapse.create({ provider });
-      const balance = await synapse.payments.walletBalance();
-      console.log("FIL balance:", balance.toString());
+      const pandoraAddress = CONTRACT_ADDRESSES.PANDORA_SERVICE.calibration;
+      const synapse = await Synapse.create({
+        provider,
+        pandoraAddress,
+      });
+      const filBalance = await synapse.payments.walletBalance();
+      const usdfcBalance = await synapse.payments.walletBalance(TOKENS.USDFC);
+      console.log("FIL balance:", filBalance.toString());
+      console.log("USDFC balance:", usdfcBalance.toString());
 
-      // 4) Create (mock) StorageService
-      //    Because the real StorageService is “pending,” this will return MockStorageService
+      // 4) Create StorageService using Synapse SDK v0.5
+      setStatus("Creating storage service...");
       const storage = await synapse.createStorage({
-        storageProvider: "f01234", // replace with a valid provider ID or leave as mock
+        withCDN: false,
+        callbacks: {
+          onProviderSelected: (provider) => {
+            console.log("Selected storage provider:", provider.owner);
+            console.log("PDP URL:", provider.pdpUrl);
+          },
+          onProofSetResolved: (info) => {
+            if (info.isExisting) {
+              console.log("Using existing proof set:", info.proofSetId);
+            } else {
+              console.log("Created new proof set:", info.proofSetId);
+            }
+          },
+          onProofSetCreationStarted: (txHash) => {
+            console.log("Creating proof set, tx:", txHash);
+          },
+        },
       });
 
-      // 5) Kick off upload (→ MockStorageService.upload under the hood)
-      setStatus("Uploading to mock storage service...");
-      const uploadTask = storage.upload(uint8ArrayBytes);
+      // 5) Run a preflight check
+      setStatus("Running preflight check...");
+      const preflight = await storage.preflightUpload(uint8ArrayBytes.length);
 
-      // 6) Wait for CommP calculation (mock)
-      const commp = await uploadTask.commp();
-      console.log("CommP (mock):", commp);
+      if (!preflight.allowanceCheck.sufficient) {
+        console.log("Insufficient allowances, preparing upload...");
+        const pandoraService = new PandoraService(provider, pandoraAddress);
+        const prep = await pandoraService.prepareStorageUpload(
+          { dataSize: uint8ArrayBytes.length },
+          synapse.payments
+        );
+        for (const action of prep.actions) {
+          setStatus(action.description + "...");
+          await action.execute();
+        }
+      }
 
-      // 7) (Optional) If you want to display intermediate progress, you could do that here.
-      //    But MockStorageService usually just resolves immediately.
-      setProgress(50);
-      setStatus("Finalizing upload...");
-
-      // 8) Wait for “chain commit” (mock)
-      const txHash = await uploadTask.done();
-      console.log("Mock txHash:", txHash);
+      // 6) Upload the file using the new API
+      setStatus("Uploading to storage provider...");
+      const result = await storage.upload(uint8ArrayBytes, {
+        onUploadComplete: (commp) => {
+          console.log("CommP:", commp);
+        },
+        onRootAdded: () => {
+          console.log("Root added to proof set");
+        }
+      });
 
       setProgress(100);
-      setStatus("✅ File uploaded successfully (mock)!");
+      setStatus("✅ File uploaded successfully!");
       setUploadedInfo({
         fileName: file.name,
         fileSize: file.size,
-        commp: commp.toLocaleString(),
-        txHash: txHash,
+        commp: result.commp,
+        rootId: result.rootId,
       });
     } catch (err: any) {
       console.error(err);
@@ -122,7 +153,6 @@ export function FileUploader() {
     return null;
   }
 
-  console.log(uploadedInfo);
   return (
     <div className="w-full max-w-md">
       <div
@@ -232,10 +262,12 @@ export function FileUploader() {
               <span className="font-medium">CommP:</span>{" "}
               {uploadedInfo.commp}
             </div>
-            <div className="break-all">
-              <span className="font-medium">Tx Hash:</span>{" "}
-              {uploadedInfo.txHash}
-            </div>
+            {uploadedInfo.rootId != null && (
+              <div className="break-all">
+                <span className="font-medium">Root ID:</span>{" "}
+                {uploadedInfo.rootId}
+              </div>
+            )}
           </div>
         </div>
       )}
