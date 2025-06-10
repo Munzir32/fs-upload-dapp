@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 
-import { Synapse } from "@filoz/synapse-sdk";
+import { Synapse, CONTRACT_ADDRESSES } from "@filoz/synapse-sdk";
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -63,7 +63,10 @@ export function FileUploader() {
       const provider = new ethers.BrowserProvider(window.ethereum);
 
       // 3) Create Synapse instance
-      const synapse = await Synapse.create({ provider });
+      const synapse = await Synapse.create({
+        provider,
+        pandoraAddress: CONTRACT_ADDRESSES.PANDORA_SERVICE.calibration,
+      });
       const balance = await synapse.payments.walletBalance();
       console.log("FIL balance:", balance.toString());
 

@@ -1,4 +1,13 @@
 module.exports = {
+  TOKENS: {
+    USDFC: 'USDFC',
+    FIL: 'FIL',
+  },
+  CONTRACT_ADDRESSES: {
+    PANDORA_SERVICE: {
+      calibration: '0xMockPandoraAddress',
+    },
+  },
   Synapse: {
     create: jest.fn(async () => ({
       payments: { walletBalance: jest.fn().mockResolvedValue(BigInt(0)) },
