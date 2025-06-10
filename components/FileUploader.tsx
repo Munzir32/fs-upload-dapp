@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 
 import { Synapse, CONTRACT_ADDRESSES, TOKENS } from "@filoz/synapse-sdk";
-import { PandoraService } from "@filoz/synapse-sdk/pandora";
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -74,19 +73,7 @@ export function FileUploader() {
       console.log("FIL balance:", filBalance.toString());
       console.log("USDFC balance:", usdfcBalance.toString());
 
-      // 4) Ensure allowances before creating the storage service
-      setStatus("Checking allowances...");
-      const pandoraService = new PandoraService(provider, pandoraAddress);
-      const prep = await pandoraService.prepareStorageUpload(
-        { dataSize: uint8ArrayBytes.length, withCDN: false },
-        synapse.payments
-      );
-      for (const action of prep.actions) {
-        setStatus(action.description + "...");
-        await action.execute();
-      }
-
-      // 5) Create StorageService using Synapse SDK v0.5
+      // 4) Create StorageService using Synapse SDK v0.5
       setStatus("Creating storage service...");
       const storage = await synapse.createStorage({
         withCDN: false,
