@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useAccount, useWalletClient } from "wagmi";
-import { Synapse } from "@filoz/synapse-sdk";
+import { Synapse, TOKENS } from "@filoz/synapse-sdk";
 
 export function TokenPayment() {
   const { address, isConnected } = useAccount();
@@ -30,12 +30,12 @@ export function TokenPayment() {
       // Get FIL balance (wallet)
       const filRaw: bigint = await payments.walletBalance();
       // Get USDFC balance (wallet)
-      const usdfcRaw: bigint = await payments.walletBalance(Synapse.USDFC);
+      const usdfcRaw: bigint = await payments.walletBalance(TOKENS.USDFC);
       // Get USDFC contract balance (payments contract)
-      const paymentsRaw: bigint = await payments.balance(Synapse.USDFC);
+      const paymentsRaw: bigint = await payments.balance(TOKENS.USDFC);
 
       // Get decimals for USDFC (should be 18)
-      const usdfcDecimals: number = await payments.decimals(Synapse.USDFC);
+      const usdfcDecimals: number = await payments.decimals(TOKENS.USDFC);
 
       setFilBalance(Number(filRaw) / 1e18);
       setUsdfcBalance(Number(usdfcRaw) / 10 ** usdfcDecimals);
@@ -66,7 +66,7 @@ export function TokenPayment() {
       const provider = new ethers.BrowserProvider(window.ethereum);
 
       const synapse = await Synapse.create({ provider });
-      const decimals: number = await synapse.payments.decimals(Synapse.USDFC);
+      const decimals: number = await synapse.payments.decimals(TOKENS.USDFC);
 
       // Parse amount to base units (bigint)
       const amt = BigInt(Math.floor(parseFloat(amount) * 10 ** decimals));
