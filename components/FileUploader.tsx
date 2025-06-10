@@ -3,7 +3,8 @@ import { ethers } from "ethers";
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 
-import { Synapse, CONTRACT_ADDRESSES } from "@filoz/synapse-sdk";
+import { Synapse, CONTRACT_ADDRESSES, TOKENS } from "@filoz/synapse-sdk";
+import { PandoraService } from "@filoz/synapse-sdk/pandora";
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -63,17 +64,33 @@ export function FileUploader() {
       const provider = new ethers.BrowserProvider(window.ethereum);
 
       // 3) Create Synapse instance
+      const pandoraAddress = CONTRACT_ADDRESSES.PANDORA_SERVICE.calibration;
       const synapse = await Synapse.create({
         provider,
-        pandoraAddress: CONTRACT_ADDRESSES.PANDORA_SERVICE.calibration,
+        pandoraAddress,
       });
-      const balance = await synapse.payments.walletBalance();
-      console.log("FIL balance:", balance.toString());
+      const filBalance = await synapse.payments.walletBalance();
+      const usdfcBalance = await synapse.payments.walletBalance(TOKENS.USDFC);
+      console.log("FIL balance:", filBalance.toString());
+      console.log("USDFC balance:", usdfcBalance.toString());
 
-      // 4) Create StorageService using Synapse SDK v0.5
+      // 4) Ensure allowances and approvals using PandoraService
+      const pandoraService = new PandoraService(provider, pandoraAddress);
+      setStatus("Checking allowances...");
+      const prep = await pandoraService.prepareStorageUpload(
+        { dataSize: uint8ArrayBytes.length },
+        synapse.payments
+      );
+
+      for (const action of prep.actions) {
+        setStatus(action.description + "...");
+        await action.execute();
+      }
+
+      // 5) Create StorageService using Synapse SDK v0.5
       const storage = await synapse.createStorage({});
 
-      // 5) Run a preflight check (optional in this demo)
+      // 6) Run a preflight check (optional)
       await storage.preflightUpload(uint8ArrayBytes.length);
 
       // 6) Upload the file using the new API

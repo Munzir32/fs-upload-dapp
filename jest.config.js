@@ -9,6 +9,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^@filoz/synapse-sdk$': '<rootDir>/test/__mocks__/synapse-sdk.js',
+    '^@filoz/synapse-sdk/pandora$': '<rootDir>/test/__mocks__/synapse-sdk.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts']

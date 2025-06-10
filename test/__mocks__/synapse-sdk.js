@@ -8,6 +8,14 @@ module.exports = {
       calibration: '0xMockPandoraAddress',
     },
   },
+  PandoraService: class {
+    constructor() {}
+    prepareStorageUpload = jest.fn().mockResolvedValue({
+      estimatedCost: { perEpoch: 0n, perDay: 0n, perMonth: 0n },
+      allowanceCheck: { sufficient: true, message: '' },
+      actions: [],
+    });
+  },
   Synapse: {
     create: jest.fn(async () => ({
       payments: { walletBalance: jest.fn().mockResolvedValue(BigInt(0)) },
