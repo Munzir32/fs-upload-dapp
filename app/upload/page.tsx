@@ -191,7 +191,7 @@ export default function AssetUpload() {
         includeDatasetCreationFee 
       });
 
-      // Check balances first (optional - preflight check will handle the real validation)
+      // Check balances first
       console.log('Checking wallet balances...');
       setUploadedFiles(prev => prev.map(f => 
         f.id === fileId 
@@ -199,27 +199,23 @@ export default function AssetUpload() {
           : f
       ));
 
-      try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const [usdfcBalance, filBalance] = await Promise.all([
-          checkUSDFCBalance(provider, address, synapse),
-          checkFILBalance(provider, address)
-        ]);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const [usdfcBalance, filBalance] = await Promise.all([
+        checkUSDFCBalance(provider, address),
+        checkFILBalance(provider, address)
+      ]);
 
-        console.log('Balance check results:', {
-          usdfc: usdfcBalance,
-          fil: filBalance
-        });
+      console.log('Balance check results:', {
+        usdfc: usdfcBalance,
+        fil: filBalance
+      });
 
-        if (!usdfcBalance.hasBalance) {
-          console.warn('USDFC balance check failed, but continuing with preflight check');
-        }
+      if (!usdfcBalance.hasBalance) {
+        throw new Error('Insufficient USDFC balance. Please add USDFC to your wallet.');
+      }
 
-        if (!filBalance.hasBalance) {
-          console.warn('FIL balance check failed, but continuing with preflight check');
-        }
-      } catch (balanceError) {
-        console.warn('Balance check failed, but continuing with preflight check:', balanceError);
+      if (!filBalance.hasBalance) {
+        throw new Error('Insufficient FIL balance for gas fees. Please add FIL to your wallet.');
       }
 
       // Check USDFC balance and storage allowances
