@@ -1,0 +1,37 @@
+{
+  "name": "playstorex-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for PlayStoreX Gaming Asset Marketplace",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:calibration": "NETWORK=filecoinCalibration hardhat run deploy.js --network filecoinCalibration",
+    "deploy:mainnet": "NETWORK=filecoinMainnet hardhat run deploy.js --network filecoinMainnet",
+    "deploy:local": "hardhat run deploy.js --network hardhat",
+    "verify:calibration": "hardhat verify --network filecoinCalibration",
+    "verify:mainnet": "hardhat verify --network filecoinMainnet",
+    "coverage": "hardhat coverage",
+    "size": "hardhat size-contracts"
+  },
+  "keywords": [
+    "filecoin",
+    "gaming",
+    "nft",
+    "marketplace",
+    "web3",
+    "solidity",
+    "smart-contracts"
+  ],
+  "author": "PlayStoreX Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^4.9.3",
+    "hardhat": "^2.17.1",
+    "dotenv": "^16.3.1"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2"
+  }
+}
