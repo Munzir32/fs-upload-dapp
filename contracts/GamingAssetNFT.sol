@@ -31,14 +31,12 @@ contract GamingAssetNFT is
     // Base URI for metadata
     string private _baseTokenURI;
     
-    // Mapping from token ID to asset metadata
-    mapping(uint256 => AssetMetadata) private _assetMetadata;
-    
-    // Mapping from game ID to token IDs
-    mapping(string => uint256[]) private _gameAssets;
-    
-    // Mapping from category to token IDs
-    mapping(string => uint256[]) private _categoryAssets;
+   
+    mapping(uint256 => string) private _assetMetadataHashes;
+    mapping(uint256 => uint256) private _filecoinStorageIds;
+    mapping(uint256 => bool) private _cdnEnabled;
+    mapping(bytes32 => uint256[]) private _gameAssets;
+    mapping(bytes32 => uint256[]) private _categoryAssets;
     
     // Mapping from owner to token IDs
     mapping(address => uint256[]) private _ownerAssets;
@@ -56,41 +54,32 @@ contract GamingAssetNFT is
     /**
      * @dev Mint a new gaming asset NFT
      * @param to Address to mint the NFT to
-     * @param metadataURI IPFS/metadata URI for the asset
+     * @param metadataHash IPFS hash pointing to metadata stored on Filecoin
      * @param filecoinStorageId Filecoin storage deal ID
      * @param cdnEnabled Whether CDN is enabled for fast retrieval
      * @return tokenId The ID of the newly minted token
      */
     function mintAsset(
         address to,
-        string memory metadataURI,
+        string memory metadataHash,
         uint256 filecoinStorageId,
         bool cdnEnabled
     ) external override onlyOwner whenNotPaused returns (uint256) {
         require(to != address(0), "Cannot mint to zero address");
-        require(bytes(metadataURI).length > 0, "Metadata URI cannot be empty");
+        require(bytes(metadataHash).length > 0, "Metadata hash cannot be empty");
         require(filecoinStorageId > 0, "Filecoin storage ID must be valid");
 
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
 
         _safeMint(to, tokenId);
-        _setTokenURI(tokenId, metadataURI);
+        _setTokenURI(tokenId, metadataHash);
 
-        // Store asset metadata
-        _assetMetadata[tokenId] = AssetMetadata({
-            name: "",
-            description: "",
-            category: "",
-            gameId: "",
-            version: "",
-            filecoinStorageId: filecoinStorageId,
-            cdnEnabled: cdnEnabled,
-            createdAt: block.timestamp,
-            updatedAt: block.timestamp
-        });
+        _assetMetadataHashes[tokenId] = metadataHash;
+        _filecoinStorageIds[tokenId] = filecoinStorageId;
+        _cdnEnabled[tokenId] = cdnEnabled;
 
-        emit AssetMinted(tokenId, to, metadataURI, filecoinStorageId, cdnEnabled);
+        emit AssetMinted(tokenId, to, metadataHash, filecoinStorageId, cdnEnabled);
         
         return tokenId;
     }
@@ -238,17 +227,16 @@ contract GamingAssetNFT is
         metadata.updatedAt = block.timestamp;
     }
 
-    // View functions
-    function getAssetMetadata(uint256 tokenId) external view override tokenExists(tokenId) returns (AssetMetadata memory) {
-        return _assetMetadata[tokenId];
+    function getAssetMetadataHash(uint256 tokenId) external view tokenExists(tokenId) returns (string memory) {
+        return _assetMetadataHashes[tokenId];
     }
 
     function getFilecoinStorageId(uint256 tokenId) external view override tokenExists(tokenId) returns (uint256) {
-        return _assetMetadata[tokenId].filecoinStorageId;
+        return _filecoinStorageIds[tokenId];
     }
 
     function isCDNEnabled(uint256 tokenId) external view override tokenExists(tokenId) returns (bool) {
-        return _assetMetadata[tokenId].cdnEnabled;
+        return _cdnEnabled[tokenId];
     }
 
     function getAssetCount() external view override returns (uint256) {
@@ -260,24 +248,15 @@ contract GamingAssetNFT is
     }
 
     function getAssetsByGame(string memory gameId) external view override returns (uint256[] memory) {
-        return _gameAssets[gameId];
+        bytes32 gameHash = keccak256(abi.encodePacked(gameId));
+        return _gameAssets[gameHash];
     }
 
     function getAssetsByCategory(string memory category) external view override returns (uint256[] memory) {
-        return _categoryAssets[category];
+        bytes32 categoryHash = keccak256(abi.encodePacked(category));
+        return _categoryAssets[categoryHash];
     }
 
-    function getAssetName(uint256 tokenId) external view tokenExists(tokenId) returns (string memory) {
-        return _assetMetadata[tokenId].name;
-    }
-
-    function getAssetCategory(uint256 tokenId) external view tokenExists(tokenId) returns (string memory) {
-        return _assetMetadata[tokenId].category;
-    }
-
-    function getAssetGameId(uint256 tokenId) external view tokenExists(tokenId) returns (string memory) {
-        return _assetMetadata[tokenId].gameId;
-    }
 
     // Internal helper functions
     function _removeFromOwnerAssets(address owner, uint256 tokenId) internal {

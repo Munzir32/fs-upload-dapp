@@ -52,11 +52,9 @@ interface IPlayStoreX {
         uint256 amount
     );
 
-    // Structs
     struct AssetInfo {
         uint256 assetId;
         address creator;
-        string metadataURI;
         uint256 price;
         uint256 filecoinStorageId;
         bool cdnEnabled;
@@ -68,8 +66,6 @@ interface IPlayStoreX {
     
     struct CreatorInfo {
         address creator;
-        string name;
-        string description;
         uint256 feePercentage;
         bool isActive;
         uint256 totalAssets;
@@ -85,9 +81,8 @@ interface IPlayStoreX {
         bool isRefunded;
     }
 
-    // Functions
     function listAsset(
-        string memory metadataURI,
+        string memory metadataHash,
         uint256 price,
         uint256 filecoinStorageId,
         bool cdnEnabled
@@ -98,14 +93,13 @@ interface IPlayStoreX {
     function updateAsset(
         uint256 assetId,
         uint256 newPrice,
-        string memory newMetadataURI
+        string memory newMetadataHash
     ) external;
     
     function delistAsset(uint256 assetId) external;
     
     function registerCreator(
-        string memory name,
-        string memory description,
+        string memory metadataHash,
         uint256 feePercentage
     ) external;
     
@@ -126,4 +120,9 @@ interface IPlayStoreX {
     function getTotalRevenue() external view returns (uint256);
     
     function getCreatorRevenue(address creator) external view returns (uint256);
+    
+    function getAssetMetadataHash(uint256 assetId) external view returns (string memory);
+    function getCreatorMetadataHash(address creator) external view returns (string memory);
+    function updateAssetMetadata(uint256 assetId, string memory newMetadataHash) external;
+    function updateCreatorMetadata(string memory newMetadataHash) external;
 }

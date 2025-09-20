@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
  * @title PlayStoreX
- * @dev Main marketplace contract for gaming assets on Filecoin
+ * @dev Marketplace contract for gaming assets on Filecoin
  * @author PlayStoreX Team
  */
 contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
@@ -27,13 +27,14 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
     uint256 public platformFeePercentage = 250; // 2.5% default
     uint256 public totalPlatformRevenue;
     
-    // Mappings
     mapping(uint256 => AssetInfo) public assets;
     mapping(address => CreatorInfo) public creators;
     mapping(uint256 => PurchaseInfo) public purchases;
     mapping(address => uint256[]) public creatorAssets;
     mapping(address => uint256[]) public buyerPurchases;
     mapping(address => bool) public registeredCreators;
+    mapping(uint256 => string) public assetMetadataHashes;
+    mapping(address => string) public creatorMetadataHashes;
     
     // Modifiers
     modifier onlyCreator() {
@@ -52,25 +53,24 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
     }
 
     constructor() {
-        // Initialize with owner as first creator for testing
-        _registerCreator(msg.sender, "PlayStoreX Platform", "Official PlayStoreX platform creator", 0);
+        _registerCreator(msg.sender, "", 0);
     }
 
     /**
      * @dev List a new gaming asset for sale
-     * @param metadataURI IPFS/metadata URI for the asset
+     * @param metadataHash IPFS hash pointing to metadata stored on Filecoin
      * @param price Price in FIL (in wei)
      * @param filecoinStorageId Filecoin storage deal ID
      * @param cdnEnabled Whether CDN is enabled for fast retrieval
      * @return assetId The ID of the newly created asset
      */
     function listAsset(
-        string memory metadataURI,
+        string memory metadataHash,
         uint256 price,
         uint256 filecoinStorageId,
         bool cdnEnabled
     ) external override onlyCreator whenNotPaused nonReentrant returns (uint256) {
-        require(bytes(metadataURI).length > 0, "Metadata URI cannot be empty");
+        require(bytes(metadataHash).length > 0, "Metadata hash cannot be empty");
         require(price > 0, "Price must be greater than 0");
         require(filecoinStorageId > 0, "Filecoin storage ID must be valid");
 
@@ -80,7 +80,6 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
         assets[assetId] = AssetInfo({
             assetId: assetId,
             creator: msg.sender,
-            metadataURI: metadataURI,
             price: price,
             filecoinStorageId: filecoinStorageId,
             cdnEnabled: cdnEnabled,
@@ -90,10 +89,12 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
             totalRevenue: 0
         });
 
+        assetMetadataHashes[assetId] = metadataHash;
+
         creatorAssets[msg.sender].push(assetId);
         creators[msg.sender].totalAssets++;
 
-        emit AssetListed(assetId, msg.sender, metadataURI, price, filecoinStorageId, cdnEnabled);
+        emit AssetListed(assetId, msg.sender, metadataHash, price, filecoinStorageId, cdnEnabled);
         
         return assetId;
     }
@@ -163,22 +164,22 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
      * @dev Update asset information
      * @param assetId The ID of the asset to update
      * @param newPrice New price for the asset
-     * @param newMetadataURI New metadata URI
+     * @param newMetadataHash New metadata hash pointing to updated metadata on Filecoin
      */
     function updateAsset(
         uint256 assetId,
         uint256 newPrice,
-        string memory newMetadataURI
+        string memory newMetadataHash
     ) external override assetExists(assetId) whenNotPaused {
         AssetInfo storage asset = assets[assetId];
         require(msg.sender == asset.creator, "Only creator can update asset");
         require(newPrice > 0, "Price must be greater than 0");
-        require(bytes(newMetadataURI).length > 0, "Metadata URI cannot be empty");
+        require(bytes(newMetadataHash).length > 0, "Metadata hash cannot be empty");
 
         asset.price = newPrice;
-        asset.metadataURI = newMetadataURI;
+        assetMetadataHashes[assetId] = newMetadataHash;
 
-        emit AssetUpdated(assetId, newPrice, newMetadataURI);
+        emit AssetUpdated(assetId, newPrice, newMetadataHash);
     }
 
     /**
@@ -196,35 +197,27 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
 
     /**
      * @dev Register as a creator
-     * @param name Creator's display name
-     * @param description Creator's description
+     * @param metadataHash IPFS hash pointing to creator metadata stored on Filecoin
      * @param feePercentage Creator's fee percentage (0-1000, where 1000 = 10%)
      */
     function registerCreator(
-        string memory name,
-        string memory description,
+        string memory metadataHash,
         uint256 feePercentage
     ) external override whenNotPaused {
         require(!registeredCreators[msg.sender], "Already registered as creator");
-        require(bytes(name).length > 0, "Name cannot be empty");
+        require(bytes(metadataHash).length > 0, "Metadata hash cannot be empty");
         require(feePercentage <= 1000, "Fee percentage too high");
 
-        _registerCreator(msg.sender, name, description, feePercentage);
+        _registerCreator(msg.sender, metadataHash, feePercentage);
     }
 
-    /**
-     * @dev Internal function to register a creator
-     */
     function _registerCreator(
         address creator,
-        string memory name,
-        string memory description,
+        string memory metadataHash,
         uint256 feePercentage
     ) internal {
         creators[creator] = CreatorInfo({
             creator: creator,
-            name: name,
-            description: description,
             feePercentage: feePercentage,
             isActive: true,
             totalAssets: 0,
@@ -232,9 +225,10 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
             pendingWithdrawal: 0
         });
 
+        creatorMetadataHashes[creator] = metadataHash;
         registeredCreators[creator] = true;
 
-        emit CreatorRegistered(creator, name, description, feePercentage);
+        emit CreatorRegistered(creator, metadataHash, "", feePercentage);
     }
 
     /**
@@ -318,6 +312,30 @@ contract PlayStoreX is IPlayStoreX, ReentrancyGuard, Ownable, Pausable {
         payable(owner()).transfer(address(this).balance);
     }
 
-    // Receive function to accept FIL payments
+    function getAssetMetadataHash(uint256 assetId) external view override returns (string memory) {
+        require(assets[assetId].creator != address(0), "Asset does not exist");
+        return assetMetadataHashes[assetId];
+    }
+
+    function getCreatorMetadataHash(address creator) external view override returns (string memory) {
+        require(registeredCreators[creator], "Creator not registered");
+        return creatorMetadataHashes[creator];
+    }
+
+    function updateAssetMetadata(uint256 assetId, string memory newMetadataHash) external override assetExists(assetId) whenNotPaused {
+        AssetInfo storage asset = assets[assetId];
+        require(msg.sender == asset.creator, "Only creator can update metadata");
+        require(bytes(newMetadataHash).length > 0, "Metadata hash cannot be empty");
+
+        assetMetadataHashes[assetId] = newMetadataHash;
+        emit AssetUpdated(assetId, asset.price, newMetadataHash);
+    }
+
+    function updateCreatorMetadata(string memory newMetadataHash) external override onlyCreator whenNotPaused {
+        require(bytes(newMetadataHash).length > 0, "Metadata hash cannot be empty");
+        creatorMetadataHashes[msg.sender] = newMetadataHash;
+        emit CreatorRegistered(msg.sender, newMetadataHash, "", creators[msg.sender].feePercentage);
+    }
+
     receive() external payable {}
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { 
   Gamepad2, 
   Shield, 
@@ -57,9 +58,7 @@ export default function LandingPage() {
               <a href="#features" className="text-white hover:text-purple-400 transition-colors">Features</a>
               <a href="#how-it-works" className="text-white hover:text-purple-400 transition-colors">How It Works</a>
               <a href="#pricing" className="text-white hover:text-purple-400 transition-colors">Pricing</a>
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors">
-                Get Started
-              </button>
+              <ConnectButton />
             </div>
           </div>
         </div>
@@ -92,11 +91,7 @@ export default function LandingPage() {
             </motion.div>
 
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 flex items-center">
-                <Play className="h-5 w-5 mr-2" />
-                Start Building
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </button>
+              <ConnectButton />
               <button className="border border-white/30 hover:border-purple-400 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all hover:bg-white/10 flex items-center">
                 <Download className="h-5 w-5 mr-2" />
                 Watch Demo
@@ -377,9 +372,7 @@ export default function LandingPage() {
               Join the decentralized gaming revolution. Start building on PlayStoreX today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105">
-                Start Building Now
-              </button>
+              <ConnectButton />
               <button className="border border-white/30 hover:border-purple-400 text-white px-8 py-4 rounded-lg text-lg font-semibold transition-all hover:bg-white/10">
                 View Documentation
               </button>
